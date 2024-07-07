@@ -10,9 +10,10 @@ using namespace sf;
 RenderWindow window(VideoMode(800, 800), "N00000000");
 
 
-vector<vector<float>> gradients;
+vector<vector<double>> gradients;
 
 template <typename S>
+
 ostream& operator<<(ostream& os, const vector<S>& vector)
 {
     for (auto element : vector) {
@@ -32,36 +33,38 @@ ConvexShape makeCar(Car car){
 
 void randomize(Net &net){
     random_device rd;
-    std::mt19937 engine(rd());
-    normal_distribution<> d(-1, 1);
+    mt19937 gen(rd());
+    random_device rd2;
+    mt19937 gen2(rd2());
+    normal_distribution<> b(-1, 1);
     for (int l = 0; l < net.neurons.size(); l++){
-        // int in = net.weights[l][0].size();
-        // int out = net.weights[l].size();
-        // float dist = sqrt(6/(in+out));
-        // normal_distribution<> d(-dist, dist);
+        int in = net.weights[l][0].size();
+        int out = net.weights[l].size();
+        double dist = sqrt(6/(in+out));
+        normal_distribution<> d(-dist, dist);
         for (int r = 0; r < net.weights[l].size(); r++){
             for (int c = 0; c < net.weights[l][0].size(); c++){
-                net.weights[l][r][c] = d(engine);
+                net.weights[l][r][c] = 0;
             }
         }
         for (int r = 0; r < net.biases[l].size(); r++){
-            net.biases[l][r] = d(engine);
+            net.biases[l][r] = 0;
         }
     }
 }
 
-void train(Net &net, vector<float> in, vector<float> out){
+void train(Net &net, vector<double> in, vector<double> out){
     net.input(in);
     net.calculate();
     net.backprop(out);
 }
 
 
-float getAngle(vector<float> dists, Net &net){
+double getAngle(vector<double> dists, Net &net){
     net.input(dists);
     net.calculate();
-    float f = net.neurons.back()[0];
-    return f*3.14159;
+    double f = net.neurons.back()[0];
+    return (f)*1.5708/1.1;
 }
 
 bool crashed(Car car, Image im){
@@ -80,7 +83,7 @@ bool crashed(Car car, Image im){
 
 int runCar(Car car, Net &net, Image map){
     int n = 1;
-    for (int i = 0; i < 200; i++){
+    for (int i = 0; i < 500; i++){
         car.rotate(car.heading+getAngle(car.getDists(map), net));
         car.move(2);
         if (crashed(car, map)) break;
@@ -111,7 +114,7 @@ int runCar2(Car car, Net &net, Image map, RectangleShape rect){
 void trainCar(Car car, Net &net, Image map){
 
     int l = net.weights.size()-1;
-    vector<vector<float>> g = gradients;
+    vector<vector<double>> g = gradients;
     for (int r = 0; r < net.weights[l].size(); r++){
         for (int c = 0; c < net.weights[l][0].size(); c++){
             net.weights[l][r][c] += 0.1;
@@ -121,7 +124,7 @@ void trainCar(Car car, Net &net, Image map){
             g[r][c] = 10*(moves-moves2);
         }
     }
-    vector<float> v;
+    vector<double> v;
     for (int n = 0; n < net.biases[l].size(); n++){
         net.biases[l][n] += 0.1;
         int moves = runCar(car, net, map);
@@ -140,13 +143,13 @@ void trainCar2(Car car, Net &net, Image map){
                 int moves = runCar(car, net, map);
                 net.weights[l][r][c] -= 0.1;
                 int moves2 = runCar(car, net, map);
-                net.weights[l][r][c] += 10*(moves-moves2);
+                net.weights[l][r][c] += 0.001*(moves-moves2);
             }
-            net.biases[l][r] += 0.1;
-            int moves = runCar(car, net, map);
-            net.biases[l][r] -= 0.1;
-            int moves2 = runCar(car, net, map);
-            net.biases[l][r] += 10*(moves-moves2);
+            // net.biases[l][r] += 0.1;
+            // int moves = runCar(car, net, map);
+            // net.biases[l][r] -= 0.001;
+            // int moves2 = runCar(car, net, map);
+            // net.biases[l][r] += 0.001*(moves-moves2);
         }
     }
 
@@ -158,17 +161,17 @@ void trainCar2(Car car, Net &net, Image map){
 int main()
 {
 
-    vector<int> l = {3, 4, 4, 1};
-    Net net = Net(l, 0.1);
+    vector<int> l = {3, 1};
+    Net net = Net(l, 0.00001);
     randomize(net);
 
     Image mapImage;
-    mapImage.loadFromFile("Assets/path2.png");
+    mapImage.loadFromFile("Assets/path1.png");
 
-    Car c = Car(10, 0, {400, 70});  
+    Car c = Car(10, 0, {20, 20});  
 
 
-    vector<float> v;
+    vector<double> v;
 
     for (int i = 0; i < net.neurons[net.neurons.size()-2].size(); i++){
         v.push_back(0.0f);
@@ -180,44 +183,44 @@ int main()
 
 
     Texture t;
-    t.loadFromFile("Assets/path2.png");
+    t.loadFromFile("Assets/path1.png");
 
     RectangleShape rect(Vector2f(800, 800));
     rect.setTexture(&t);
 
-    runCar2(c, net, mapImage, rect);
+    // runCar2(c, net, mapImage, rect);
 
-    cout << runCar(c, net, mapImage) << "\n";
-    for (int i = 0; i < 100; i++){
-        // if (i%10 == 0) runCar2(c, net, mapImage);
-        trainCar(c, net, mapImage);
-    }
+    // cout << net.weights << endl;
 
+    // cout << net.biases << endl;
 
-    for (auto l: net.weights){
-        for (auto w: l){
-            for (auto f: w)
-                cout << f << "\n";
-        }
-    }
+    // cout << net.neurons << endl;
 
-    cout << endl;
-
-    for (auto l: net.biases){
-        for (auto w: l){
-            cout << w << endl;
-        }
-    }
-
-    cout << endl;
-
-    cout << runCar(c, net, mapImage) << "\n\n";
-
-    // for (auto d: c.getDists(mapImage)){
-    //     cout << d << "\n";
+    // cout << runCar(c, net, mapImage) << "\n";
+    // for (int i = 0; i < 100; i++){
+    //     trainCar(c, net, mapImage);
     // }
 
 
+
+    // cout << net.weights << endl;
+
+    // cout << net.biases << endl;
+
+    // cout << net.neurons << endl;
+
+
+    // cout << runCar(c, net, mapImage) << "\n\n";
+
+    net.weights[1][0][0] = -0.01;
+    net.weights[1][0][1] = 0;
+    net.weights[1][0][2] = 0.01;
+
+    cout << net.weights << endl;
+    net.input(c.getDists(mapImage));
+    net.calculate();
+    cout << net.biases << endl;
+    cout << net.neurons << endl;
 
     while (window.isOpen())
     {
@@ -234,9 +237,10 @@ int main()
         window.draw(rect);
 
         if (!crashed(c, mapImage)){
-            c.move(2);
-            // cout << c.getDists(mapImage) << endl;
-            c.rotate(c.heading+getAngle(c.getDists(mapImage), net));
+            c.move(0.2);
+            // c.rotate(getAngle(c.getDists(mapImage), net));
+            c.rotate(0.2);
+            cout << c.heading << endl;
         }
 
         ConvexShape carShape = makeCar(c);

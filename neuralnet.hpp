@@ -9,20 +9,20 @@ class Net
 private:
     
 public:
-    vector<vector<float>> neurons;
-    vector<vector<vector<float>>> weights;
-    vector<vector<float>> biases;
-    vector<vector<vector<float>>> propWeights;
-    vector<vector<float>> propBiases;
-    float learnRate;
-    Net(vector<int> layers, float f);
-    void test(vector<vector<float>> v, vector<float> out);
-    vector<float> matrixMult(vector<vector<float>> a, vector<float> b);
-    float sigmoidThing(float d);
-    float sigmoid(float d);
+    vector<vector<double>> neurons;
+    vector<vector<vector<double>>> weights;
+    vector<vector<double>> biases;
+    vector<vector<vector<double>>> propWeights;
+    vector<vector<double>> propBiases;
+    double learnRate;
+    Net(vector<int> layers, double f);
+    void test(vector<vector<double>> v, vector<double> out);
+    vector<double> matrixMult(vector<vector<double>> a, vector<double> b);
+    double sigmoidThing(double d);
+    double sigmoid(double d);
     void calculate();
-    void input(vector<float> in);
-    void backprop(vector<float> out);
-    void partialbackprop(vector<vector<float>> out, vector<float> b);
-    float totalError(vector<float> e);
+    void input(vector<double> in);
+    void backprop(vector<double> out);
+    void partialbackprop(vector<vector<double>> out, vector<double> b);
+    double totalError(vector<double> e);
 };

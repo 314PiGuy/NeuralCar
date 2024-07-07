@@ -1,17 +1,15 @@
 #include "neuralnet.hpp"
 
-Net::Net(vector<int> layers, float l){
+Net::Net(vector<int> layers, double l){
     for (int i = 0; i < layers.size(); i++){
-        neurons.push_back(vector<float>(layers[i], 0));
-        biases.push_back(vector<float>(layers[i], 0));
-        propBiases.push_back(vector<float>(layers[i], 0));
+        neurons.push_back(vector<double>(layers[i], 0));
+        biases.push_back(vector<double>(layers[i], 0));
+        propBiases.push_back(vector<double>(layers[i], 0));
     }
 
-    // weights.push_back({{1}});
-
     for (int i = 0; i < neurons.size(); i++){
-        vector<vector<float>> V;
-        vector<float> v(neurons[i-1].size(), 1);
+        vector<vector<double>> V;
+        vector<double> v(neurons[i-1].size(), 1);
         for (int j = 0; j < neurons[i].size(); j++){
             V.push_back(v);
         }
@@ -22,7 +20,7 @@ Net::Net(vector<int> layers, float l){
     learnRate = l;
 }
 
-void Net::input(vector<float> in){
+void Net::input(vector<double> in){
     for (int i = 0; i < neurons[0].size(); i++){
         neurons[0][i] = in[i];
     }
@@ -37,15 +35,15 @@ void Net::calculate(){
     }
 }
 
-void Net::backprop(vector<float> out){
+void Net::backprop(vector<double> out){
 
-    vector<float> errors(neurons.back().size());
+    vector<double> errors(neurons.back().size());
 
     for (int i = 0; i < errors.size(); i++){
         errors[i] = 2*(neurons.back()[i]-out[i])/neurons.back().size();
     }
 
-    vector<float> sigmoids(neurons.back().size());
+    vector<double> sigmoids(neurons.back().size());
     for (int i = 0; i < sigmoids.size(); i++){
         errors[i] *= sigmoidThing(neurons.back()[i]);
     }
@@ -53,7 +51,7 @@ void Net::backprop(vector<float> out){
 
 
     for (int l = neurons.size()-1; l > 0; l--){
-        vector<float> errors2(neurons[l-1].size(), 0);
+        vector<double> errors2(neurons[l-1].size(), 0);
         for (int r = 0; r < weights[l].size(); r++){
             for (int c = 0; c < weights[l][0].size(); c++){
                 propWeights[l][r][c] = neurons[l-1][c] * errors[r];
@@ -78,9 +76,9 @@ void Net::backprop(vector<float> out){
     }
 }
 
-void Net::partialbackprop(vector<vector<float>> gradients, vector<float> bgradients){
+void Net::partialbackprop(vector<vector<double>> gradients, vector<double> bgradients){
 
-    vector<float> errors(neurons[neurons.size()-2].size());
+    vector<double> errors(neurons[neurons.size()-2].size());
 
     int L = propWeights.size()-1;
 
@@ -100,7 +98,7 @@ void Net::partialbackprop(vector<vector<float>> gradients, vector<float> bgradie
     }
 
     for (int l = neurons.size()-2; l > 0; l--){
-        vector<float> errors2(neurons[l-1].size(), 0);
+        vector<double> errors2(neurons[l-1].size(), 0);
         for (int r = 0; r < weights[l].size(); r++){
             for (int c = 0; c < weights[l][0].size(); c++){
                 propWeights[l][r][c] = neurons[l-1][c] * errors[r];
@@ -125,15 +123,15 @@ void Net::partialbackprop(vector<vector<float>> gradients, vector<float> bgradie
     }
 }
 
-void Net::test(vector<vector<float>> gradients, vector<float> out){
-    vector<float> errors(neurons[neurons.size()-2].size());
+void Net::test(vector<vector<double>> gradients, vector<double> out){
+    vector<double> errors(neurons[neurons.size()-2].size());
 
     int L = propWeights.size()-1;
 
     propWeights[L] = gradients;
 
     for (int r = 0; r < weights.back().size(); r++){
-        for (int c = 0; c < weights.back()[0].size(); c++){
+        for (int c = 0; c < weights.back()[0].size();  c++){
             errors[c] += weights[L][r][c] * gradients[r][c] / neurons[L-1][c] / 10;
         }
     }
@@ -144,20 +142,20 @@ void Net::test(vector<vector<float>> gradients, vector<float> out){
 
     //
 
-    vector<float> errors2(neurons.back().size());
+    vector<double> errors2(neurons.back().size());
 
     for (int i = 0; i < errors2.size(); i++){
         errors2[i] = 2*(neurons.back()[i]-out[i])/neurons.back().size();
     }
 
-    vector<float> sigmoids(neurons.back().size());
+    vector<double> sigmoids(neurons.back().size());
     for (int i = 0; i < sigmoids.size(); i++){
         errors2[i] *= sigmoidThing(neurons.back()[i]);
     }
 
     int l = neurons.size()-1;
 
-    vector<float> errors3(neurons[l-1].size(), 0);
+    vector<double> errors3(neurons[l-1].size(), 0);
     for (int r = 0; r < weights[l].size(); r++){
         for (int c = 0; c < weights[l][0].size(); c++){
             propWeights[l][r][c] = neurons[l-1][c] * errors2[r];
@@ -170,18 +168,18 @@ void Net::test(vector<vector<float>> gradients, vector<float> out){
     }
     errors2 = errors3;
 
-    for (float f: errors){
+    for (double f: errors){
         cout << f << "\n";
     }
     cout << "\n";
-    for (float f: errors2){
+    for (double f: errors2){
         cout << f << "\n";
     }
 }
 
 
-float Net::totalError(vector<float> e){
-    float r = 0.0f;
+double Net::totalError(vector<double> e){
+    double r = 0.0f;
     for (int i = 0; i < neurons.back().size(); i++){
         r += (neurons.back()[i]-e[i])*(neurons.back()[i]-e[i]);
     }
@@ -189,12 +187,12 @@ float Net::totalError(vector<float> e){
     return r;
 }
 
-vector<float> Net::matrixMult(vector<vector<float>> a, vector<float> b){
+vector<double> Net::matrixMult(vector<vector<double>> a, vector<double> b){
     if (a[0].size() != b.size()){
         return {{0}};
     }
 
-    vector<float> v;
+    vector<double> v;
 
 
     for (int i = 0; i < a.size(); i++){
@@ -212,13 +210,11 @@ vector<float> Net::matrixMult(vector<vector<float>> a, vector<float> b){
     return v;
 }
 
-float Net::sigmoid(float d){
-    return 1/(1+pow(2.718, -d));
+double Net::sigmoid(double d){
+    return 1/(1+pow(2.718, -d))-0.6;
 }
 
 
-float Net::sigmoidThing(float d){
+double Net::sigmoidThing(double d){
     return d*(1-d);
 }
-
-// Net::~Net(){}
