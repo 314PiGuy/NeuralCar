@@ -1,13 +1,13 @@
 #include "Car.hpp"
 
-Car::Car(float s, float h){
+Car::Car(float s, float h, array<float, 2> c){
     size = s;
     heading = h;
-    center = {s, s};
-    corners[0]= {0, 0};
-    corners[1] = {s*2, 0};
-    corners[2] = {s*2, s*2};
-    corners[3] = {0, s*2};
+    center = {c[0], c[1]};
+    corners[0]= {c[0]-s, c[1]-s};
+    corners[1] = {c[0]+s, c[1]-s};
+    corners[2] = {c[0]+s, c[1]+s};
+    corners[3] = {c[0]-s, c[1]+s};
 }
 
 void Car::move(float d){
@@ -44,26 +44,53 @@ vector<float> Car::getDists(Image im){
 
         double x = center[0];
         double y = center[1];
-        bool hit = false;
         float dist = 0;
-        for (int i = 0; i < 100; i++){
+        for (int i = 0; i < 300; i++){
             x += dx;
             y += dy;
             dist += 2.0f;
             int X = int(x);
             int Y = int(y);
             if (X > im.getSize().x || Y > im.getSize().y || X < 0 || Y < 0){
-                return dists;
+                break;
             }
             if (im.getPixel(X, Y) == Color::Black){
-                hit = true;
                 break;
             }
         }
-        if (!hit) dist = 200;
-        dists[n] = dist;
+        dists[n] = 1/dist;
     }
     return dists;
+}
+
+array<array<double, 2>, 3> Car::drawRay(Image im){
+    array<float, 3> angles = {heading + angleInc, heading, heading - angleInc};
+    array<array<double, 2>, 3> hits;
+    for (int n = 0; n < 3; n++){
+        float angle = angles[n];
+        double dx = 2*cos(angle);
+        double dy = 2*sin(angle);
+
+        double x = center[0];
+        double y = center[1];
+        bool hit = false;
+        float dist = 0;
+        for (int i = 0; i < 300; i++){
+            x += dx;
+            y += dy;
+            dist += 2.0f;
+            int X = int(x);
+            int Y = int(y);
+            if (X > im.getSize().x || Y > im.getSize().y || X < 0 || Y < 0){
+                break;
+            }
+            if (im.getPixel(X, Y) == Color::Black){
+                break;
+            }
+        }
+        hits[n] = {x, y};
+    }
+    return hits;
 }
 
 

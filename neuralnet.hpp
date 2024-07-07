@@ -23,6 +23,6 @@ public:
     void calculate();
     void input(vector<float> in);
     void backprop(vector<float> out);
-    void partialbackprop(vector<vector<float>> out);
+    void partialbackprop(vector<vector<float>> out, vector<float> b);
     float totalError(vector<float> e);
 };

@@ -6,9 +6,20 @@
 using namespace std;
 using namespace sf;
 
+
 RenderWindow window(VideoMode(800, 800), "N00000000");
 
+
 vector<vector<float>> gradients;
+
+template <typename S>
+ostream& operator<<(ostream& os, const vector<S>& vector)
+{
+    for (auto element : vector) {
+        os << element << " ";
+    }
+    return os;
+}
 
 ConvexShape makeCar(Car car){
    ConvexShape c;
@@ -16,10 +27,6 @@ ConvexShape makeCar(Car car){
    for (int i = 0; i < 4; i++){
     c.setPoint(i, Vector2f(car.corners[i][0], car.corners[i][1]));
    }
-//    r[0][0] = Vertex(Vector2f(car.corners[0][0], car.corners[0][1])); r[0][1] =  Vertex(Vector2f(car.corners[1][0], car.corners[1][1]));
-//    r[1][0] = Vertex(Vector2f(car.corners[1][0], car.corners[1][1])); r[1][1] =  Vertex(Vector2f(car.corners[2][0], car.corners[2][1]));
-//    r[2][0] = Vertex(Vector2f(car.corners[2][0], car.corners[2][1])); r[2][1] =  Vertex(Vector2f(car.corners[3][0], car.corners[3][1]));
-//    r[3][0] = Vertex(Vector2f(car.corners[3][0], car.corners[3][1])); r[3][1] =  Vertex(Vector2f(car.corners[0][0], car.corners[0][1]));
    return c;
 }
 
@@ -28,6 +35,10 @@ void randomize(Net &net){
     std::mt19937 engine(rd());
     normal_distribution<> d(-1, 1);
     for (int l = 0; l < net.neurons.size(); l++){
+        // int in = net.weights[l][0].size();
+        // int out = net.weights[l].size();
+        // float dist = sqrt(6/(in+out));
+        // normal_distribution<> d(-dist, dist);
         for (int r = 0; r < net.weights[l].size(); r++){
             for (int c = 0; c < net.weights[l][0].size(); c++){
                 net.weights[l][r][c] = d(engine);
@@ -46,7 +57,7 @@ void train(Net &net, vector<float> in, vector<float> out){
 }
 
 
-float getAngle(vector<float> dists, Net net){
+float getAngle(vector<float> dists, Net &net){
     net.input(dists);
     net.calculate();
     float f = net.neurons.back()[0];
@@ -54,8 +65,12 @@ float getAngle(vector<float> dists, Net net){
 }
 
 bool crashed(Car car, Image im){
-    for (array<float, 2> c: car.corners){
+    for (int i = 1; i <= 2; i++){
+        auto c = car.corners[i];
         if (im.getPixel(c[0], c[1]) == Color::Black){
+            return true;
+        }
+        if (c[0] < 0 || c[1] < 0 || c[0] > im.getSize().x || c[1] > im.getSize().y){
             return true;
         }
     }
@@ -63,14 +78,34 @@ bool crashed(Car car, Image im){
     return false;
 }
 
-int runCar(Car car, Net net, Image map){
+int runCar(Car car, Net &net, Image map){
+    int n = 1;
     for (int i = 0; i < 200; i++){
         car.rotate(car.heading+getAngle(car.getDists(map), net));
         car.move(2);
-        if (crashed(car, map)) return i;
-        i++;
+        if (crashed(car, map)) break;
+        n++;
     }
-    return 199;
+    return n;
+}
+
+int runCar2(Car car, Net &net, Image map, RectangleShape rect){
+    int n = 1;
+    for (int i = 0; i < 200; i++){
+        car.rotate(car.heading+getAngle(car.getDists(map), net));
+        car.move(0.2);
+        window.clear();
+        window.draw(rect);
+        ConvexShape carShape = makeCar(car);
+        carShape.setFillColor(Color::Red);
+        for (int i = 0; i < 4; i++){
+            window.draw(carShape);
+        }
+        window.display();
+        if (crashed(car, map)) break;
+        n++;
+    }
+    return n;
 }
 
 void trainCar(Car car, Net &net, Image map){
@@ -86,7 +121,34 @@ void trainCar(Car car, Net &net, Image map){
             g[r][c] = 10*(moves-moves2);
         }
     }
-    net.partialbackprop(g);
+    vector<float> v;
+    for (int n = 0; n < net.biases[l].size(); n++){
+        net.biases[l][n] += 0.1;
+        int moves = runCar(car, net, map);
+        net.biases[l][n] -= 0.1;
+        int moves2 = runCar(car, net, map);
+        v.push_back(10*(moves-moves2));
+    }
+    net.partialbackprop(g, v);
+}
+
+void trainCar2(Car car, Net &net, Image map){
+    for (int l = 0; l < net.weights.size(); l++){
+        for (int r = 0; r < net.weights[l].size(); r++){
+            for (int c = 0; c < net.weights[l][0].size(); c++){
+                net.weights[l][r][c] += 0.1;
+                int moves = runCar(car, net, map);
+                net.weights[l][r][c] -= 0.1;
+                int moves2 = runCar(car, net, map);
+                net.weights[l][r][c] += 10*(moves-moves2);
+            }
+            net.biases[l][r] += 0.1;
+            int moves = runCar(car, net, map);
+            net.biases[l][r] -= 0.1;
+            int moves2 = runCar(car, net, map);
+            net.biases[l][r] += 10*(moves-moves2);
+        }
+    }
 
 }
 
@@ -101,9 +163,10 @@ int main()
     randomize(net);
 
     Image mapImage;
-    mapImage.loadFromFile("Assets/path1.png");
+    mapImage.loadFromFile("Assets/path2.png");
 
-    Car c = Car(20, 0); 
+    Car c = Car(10, 0, {400, 70});  
+
 
     vector<float> v;
 
@@ -115,12 +178,46 @@ int main()
         gradients.push_back(v);
     }
 
-    Texture t;
-    t.loadFromFile("Assets/path1.png");
 
+    Texture t;
+    t.loadFromFile("Assets/path2.png");
 
     RectangleShape rect(Vector2f(800, 800));
     rect.setTexture(&t);
+
+    runCar2(c, net, mapImage, rect);
+
+    cout << runCar(c, net, mapImage) << "\n";
+    for (int i = 0; i < 100; i++){
+        // if (i%10 == 0) runCar2(c, net, mapImage);
+        trainCar(c, net, mapImage);
+    }
+
+
+    for (auto l: net.weights){
+        for (auto w: l){
+            for (auto f: w)
+                cout << f << "\n";
+        }
+    }
+
+    cout << endl;
+
+    for (auto l: net.biases){
+        for (auto w: l){
+            cout << w << endl;
+        }
+    }
+
+    cout << endl;
+
+    cout << runCar(c, net, mapImage) << "\n\n";
+
+    // for (auto d: c.getDists(mapImage)){
+    //     cout << d << "\n";
+    // }
+
+
 
     while (window.isOpen())
     {
@@ -136,13 +233,25 @@ int main()
 
         window.draw(rect);
 
-
-        Vertex lines[2];
+        if (!crashed(c, mapImage)){
+            c.move(2);
+            // cout << c.getDists(mapImage) << endl;
+            c.rotate(c.heading+getAngle(c.getDists(mapImage), net));
+        }
 
         ConvexShape carShape = makeCar(c);
         carShape.setFillColor(Color::Red);
         for (int i = 0; i < 4; i++){
             window.draw(carShape);
+        }
+
+        array<array<double, 2>, 3> rays = c.drawRay(mapImage);
+
+        for (auto p: c.drawRay(mapImage)){
+            Vertex line[] = {Vertex(Vector2f(c.center[0], c.center[1])), Vertex(Vector2f(p[0], p[1]))};
+            Vertex v;
+            line[0].color = Color::Blue; line[1].color = Color::Blue;
+            window.draw(line, 2, Lines);
         }
 
 
@@ -152,195 +261,3 @@ int main()
     }
     return 0;
 }
-
-
-// int main(){
-
-    // vector<int> l = {2, 3, 4, 2};
-    // Net net = Net(l, 0.1);
-
-    // net = randomize(net);
-
-    // net.input({0.5, 0.5});
-    // net.calculate();
-
-    // vector<float> v;
-
-    // vector<vector<float>> gradients;
-
-
-    // for (int i = 0; i < net.neurons[net.neurons.size()-2].size(); i++){
-    //     v.push_back(0.0f);
-    // }
-
-    // for (int i = 0; i < net.neurons.back().size(); i++){
-    //     gradients.push_back(v);
-    // }
-
-    
-    // for (int r = 0; r < net.weights.back().size(); r++){
-    //     for (int c = 0; c < net.weights.back()[0].size(); c++){
-    //         net.weights.back()[r][c] += 0.1;
-    //         net.input({0.5, 0.5});
-    //         net.calculate();
-    //         float e1 = net.totalError({0, 1});
-    //         net.weights.back()[r][c] -= 0.1;
-    //         net.input({0.5, 0.5});
-    //         net.calculate();
-    //         float e2 = net.totalError({0, 1});
-    //         gradients[r][c] = 10*(e1-e2);
-    //     }
-    // }
-
-    // // net.test(gradients, {0, 1});
-    
-    
-    // for (int i = 0; i < net.weights.size(); i++){
-    //     for (int j = 0; j < net.weights[i].size(); j++){
-    //         for (int k = 0; k < net.weights[i][j].size(); k++){
-    //             net.weights[i][j][k] += 0.1;
-    //             net.input({0.5, 0.5});
-    //             net.calculate();
-    //             float e1 = net.totalError({0, 1});
-    //             net.weights[i][j][k] -= 0.1;
-    //             net.input({0.5, 0.5});
-    //             net.calculate();
-    //             float e2 = net.totalError({0, 1});
-
-    //             cout << 10*(e1-e2) << "\n";
-    //         }
-    //     }
-    // }
-
-    // cout << "\n";
-
-
-    // net.input({0.5, 0.5});
-    // net.calculate();
-    // net.partialbackprop(gradients);
-
-    // for (int i = 0; i < net.weights.size(); i++){
-    //     for (int j = 0; j < net.weights[i].size(); j++){
-    //         for (int k = 0; k < net.weights[i][j].size(); k++){
-    //             cout << net.propWeights[i][j][k] << "\n";
-    //         }
-    //     }
-    // }
-
-    // cout << "\n";
-
-    // net.input({0.5, 0.5});
-    // net.calculate();
-    // net.backprop({0, 1});
-
-    // for (int i = 0; i < net.weights.size(); i++){
-    //     for (int j = 0; j < net.weights[i].size(); j++){
-    //         for (int k = 0; k < net.weights[i][j].size(); k++){
-    //             cout << net.weights[i][j][k] << "\n";
-    //         }
-    //     }
-    // }
-    // cout << "\n";
-
-    // return 0;
-
-
-
-    // for (int i = 0; i < 100000; i++){
-    //     for (int i = 0; i <= 1; i++){
-    //         for (int j = 0; j <= 1; j++){
-    //             net.input({i/1.0f, j/1.0f});
-    //             net.calculate();
-    //             net.backprop({((int)(i!=j))/1.0f, 1-((int)(i!=j))/1.0f});
-    //         }
-    //     }
-    // }
-
-    // for (int i = 0; i < net.layers.size(); i++){
-    //     for (int j = 0; j < net.layers[i].weights.size(); j++){
-    //         // for (int k = 0; k < net.layers[i].weights[0].size(); k++){
-    //         //     cout << net.layers[i].weights[j][k] << "\n";
-    //         // }
-    //         cout << net.layers[i].biases[j] << "\n";
-    //     }
-    // }
-    // cout << "\n";
-    // for (int i = 0; i < net.weights.size(); i++){
-    //     for (int j = 0; j < net.weights[i].size(); j++){
-    //         for (int k = 0; k < net.weights[i][j].size(); k++){
-    //             cout << net.weights[i][j][k] << "\n";
-    //         }
-    //     }
-    // }
-
-    // return 0;
-
-    // float L = 0.0;
-    // for (int c = 0; c < 100000; c++){
-    //     float loss = 0.0;
-    //     for (int i = 0; i <= 1; i++){
-    //         for (int j = 0; j <= 1; j++){
-    //             net = train(net, {i/1.0f, j/1.0f}, {((int)(i!=j))/1.0f, 1-((int)(i!=j))/1.0f});
-    //             loss += net.totalError({((int)(i!=j))/1.0f, 1-((int)(i!=j))/1.0f});
-    //         }
-    //     }
-    //     L = loss;
-    // }
-
-    // cout << L << endl;
-
-    // return 0;
-
-    // Image im;
-    // im.loadFromFile("Assets/blank.jpg");
-    // Texture t;
-
-    // int count = 0;
-    
-    // while (window.isOpen())
-    // {
-        
-    //     Event event;
-    //     while (window.pollEvent(event))
-    //     {
-    //         if (event.type == Event::Closed){
-    //             window.close();
-    //         }
-
-    //     }
-
-    //     window.clear();
-
-    //     // for (int i = 0; i <= 1; i++){
-    //     //     for (int j = 0; j <= 1; j++){
-    //     //         net.input({i/1.0f, j/1.0f});
-    //     //         net.backprop({((int)(i!=j))/1.0f, 1-((int)(i!=j))/1.0f});
-    //     //     }
-    //     // }
-    //     // if (count = 999){
-    //     //     net.input({1, 1});
-    //     //     net.calculate();
-    //     //     cout << net.totalError({0, 1}) << "\n";
-    //     //     count = 0;
-    //     // }
-    //     for (int i = 0; i < 800; i++){
-    //         for (int j = 0; j < 800; j++){
-    //             net.input({i/800.0f, j/800.0f});
-    //             net.calculate();
-    //             if (net.neurons.back()[0] > net.neurons.back()[1]){
-    //                 im.setPixel(i, 800-j, Color::Green);
-    //             }
-    //             else{
-    //                 im.setPixel(i, 800-j, Color::Red);
-    //             }
-    //         }
-    //     }
-    //     t.loadFromImage(im);
-    //     RectangleShape r(Vector2f(800, 800));
-    //     r.setTexture(&t);
-    //     window.draw(r);
-    //     window.display();
-    //     count++;
-    // }
-    // return 0;
-// }

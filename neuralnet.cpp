@@ -4,6 +4,7 @@ Net::Net(vector<int> layers, float l){
     for (int i = 0; i < layers.size(); i++){
         neurons.push_back(vector<float>(layers[i], 0));
         biases.push_back(vector<float>(layers[i], 0));
+        propBiases.push_back(vector<float>(layers[i], 0));
     }
 
     // weights.push_back({{1}});
@@ -15,11 +16,10 @@ Net::Net(vector<int> layers, float l){
             V.push_back(v);
         }
         weights.push_back(V);
+        propWeights.push_back(V);
     }
     
     learnRate = l;
-    propWeights = weights;
-    propBiases = biases;
 }
 
 void Net::input(vector<float> in){
@@ -78,7 +78,7 @@ void Net::backprop(vector<float> out){
     }
 }
 
-void Net::partialbackprop(vector<vector<float>> gradients){
+void Net::partialbackprop(vector<vector<float>> gradients, vector<float> bgradients){
 
     vector<float> errors(neurons[neurons.size()-2].size());
 
@@ -86,8 +86,11 @@ void Net::partialbackprop(vector<vector<float>> gradients){
 
     propWeights[L] = gradients;
 
+    propBiases[L] = bgradients;
+
     for (int r = 0; r < weights.back().size(); r++){
         for (int c = 0; c < weights.back()[0].size(); c++){
+            if (neurons[L-1][c] == 0) cout << "pain\n";
             errors[c] += weights[L][r][c] * gradients[r][c] / neurons[L-1][c];
         }
     }
